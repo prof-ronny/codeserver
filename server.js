@@ -10,7 +10,7 @@ const app = express();
 const PORT = 5000;
 const BASE_PORT = 9000;
 const TURMA = "TAPWM";
-const BASE_PATH = path.join('C:', 'codespace-server', 'meuprojetos', TURMA);
+const BASE_PATH = path.join('D:', 'codespace-server', 'meuprojetos', TURMA);
 
 const containerRegistry = {};
 

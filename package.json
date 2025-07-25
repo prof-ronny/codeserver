@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+
   "dependencies": {
     "dockerode": "^4.0.7",
     "express": "^5.1.0"
