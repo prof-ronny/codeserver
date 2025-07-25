@@ -1,4 +1,4 @@
-// server.js atualizado com spawn (Windows + Docker volume + cache npm)
+// server.js atualizado com proxy Verdaccio como cache npm/yarn/pnpm
 const express = require('express');
 const { spawn, exec } = require('child_process');
 const fs = require('fs');
@@ -11,7 +11,6 @@ const PORT = 5000;
 const BASE_PORT = 9000;
 const TURMA = "TAPWM";
 const BASE_PATH = path.join('C:', 'codespace-server', 'meuprojetos', TURMA);
-const CACHE_PATH = path.join('C:', 'codespace-server', 'npm-cache');
 
 const containerRegistry = {};
 
@@ -26,13 +25,8 @@ app.get('/:usuario/:projeto', (req, res) => {
   const folderPath = path.join(BASE_PATH, usuario, projeto);
 
   fs.mkdirSync(folderPath, { recursive: true });
-  fs.mkdirSync(CACHE_PATH, { recursive: true });
 
   const dockerPath = folderPath
-    .replace(/\\/g, '/')
-    .replace(/^([A-Z]):/, (_, drive) => `/${drive.toLowerCase()}`);
-
-  const dockerCachePath = CACHE_PATH
     .replace(/\\/g, '/')
     .replace(/^([A-Z]):/, (_, drive) => `/${drive.toLowerCase()}`);
 
@@ -58,10 +52,13 @@ app.get('/:usuario/:projeto', (req, res) => {
         '--name', containerName,
         '-p', `${assignedPort}:8080`,
         '-v', `${dockerPath}:/home/coder/project`,
-        '-v', `${dockerCachePath}:/home/coder/npm-cache`,
         '-v', '/var/run/docker.sock:/var/run/docker.sock',
-        'code-server-dev'
+        '--entrypoint', 'bash',
+        'code-server-dev',
+        '-c',
+        `export NVM_DIR="$HOME/.nvm" && source $NVM_DIR/nvm.sh && npm config set registry http://host.docker.internal:4873 && code-server --auth=none --bind-addr 0.0.0.0:8080 /home/coder/project`
       ];
+
 
       const dockerProc = spawn('docker', dockerArgs);
 

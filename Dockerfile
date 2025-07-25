@@ -13,37 +13,36 @@ RUN apt-get update && apt-get install -y \
     sudo \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Instala Docker CLI (cliente) — não o daemon
+# Instala Docker CLI (cliente)
 RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-26.1.1.tgz | tar xz \
   && mv docker/docker /usr/local/bin/ \
   && rm -rf docker
 
-# Retorna para o usuário normal
+# Volta para o usuário padrão
 USER coder
 
-# Define variáveis para o NVM
+# Variáveis para o NVM
 ENV HOME=/home/coder
 ENV NVM_DIR=$HOME/.nvm
+ENV PATH="$NVM_DIR/versions/node/v20.14.0/bin:$PATH"
+ENV npm_config_cache=/home/coder/npm-cache
 
-# Instala o NVM como o usuário 'coder'
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+# Instala NVM + Node LTS + Yarn (executando de verdade agora)
+RUN bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
+  export NVM_DIR=$HOME/.nvm && \
+  source $NVM_DIR/nvm.sh && \
+  nvm install --lts && \
+  nvm use --lts && \
+  npm install -g yarn"
 
-# Prepara o .bashrc para ativar o NVM e instalar automaticamente Node LTS e Yarn
-RUN echo '\nexport NVM_DIR="$HOME/.nvm"' >> $HOME/.bashrc \
- && echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> $HOME/.bashrc \
- && echo 'nvm install --lts' >> $HOME/.bashrc \
- && echo 'nvm use --lts' >> $HOME/.bashrc \
- && echo 'npm install -g yarn' >> $HOME/.bashrc
+# Cria pasta de cache NPM se desejado
+RUN mkdir -p /home/coder/npm-cache
 
 # Define o diretório de trabalho
 WORKDIR /home/coder/project
 
-# Expõe a porta usada pelo code-server
+# Porta padrão do code-server
 EXPOSE 8080
 
-# Usa o cache do NPM se estiver montado
-RUN echo 'export npm_config_cache=/home/coder/npm-cache' >> $HOME/.bashrc
-
-
-# Executa o code-server na pasta correta, sem autenticação
+# Inicia o code-server sem autenticação
 CMD ["code-server", "--auth=none", "--bind-addr", "0.0.0.0:8080", "/home/coder/project"]
