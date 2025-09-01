@@ -24,7 +24,7 @@ const containerRegistry = {}; // { [name]: { id2:number, code:number, web:number
 const { posix: pathPosix } = path;
 
 // -------- utils --------
-function slugify(t){ return t.replace(/[^a-z0-9]/gi,'-').toLowerCase(); }
+function slugify(t) { return t.replace(/[^a-z0-9]/gi,'-').toLowerCase(); }
 function portsFromId(id2){
   const idStr = String(id2).padStart(2,'0');
   const mk = s => Number(`9${idStr}${s}`); // 9{ID}{S}
@@ -91,13 +91,13 @@ app.get('/:usuario/:projeto', async (req, res) => {
   const slug = slugify(`${usuario}-${projeto}`);
   const name = `code-${slug}`;
 
-  const folderPath = pathPosix.join(BASE_PATH, usuario, projeto);
+  const folderPath = pathPosix.join(BASE_PATH, projeto ,usuario );
   fs.mkdirSync(folderPath, { recursive: true });
 
   // cache
   if (containerRegistry[name]?.code){
     const host = resolveRedirectHost(req);
-    return res.redirect(`http://${host}:${containerRegistry[name].code}`);
+    return res.redirect(`http://${host}:${containerRegistry[name].code}/?locale=pt-br`);
   }
 
   exec(`docker ps -a --filter "name=${name}" --format "{{.Names}}"`, async (err, out) => {
@@ -112,7 +112,7 @@ app.get('/:usuario/:projeto', async (req, res) => {
       containerRegistry[name] = { id2: null, code: codePort, web: webPorts };
       exec(`docker start ${name}`, ()=> {
         const host = resolveRedirectHost(req);
-        res.redirect(`http://${host}:${codePort}`);
+        res.redirect(`http://${host}:${codePort}/?locale=pt-br`);
       });
       return;
     }
@@ -139,15 +139,14 @@ app.get('/:usuario/:projeto', async (req, res) => {
       '-e', `GIT_NAME=${gitName}`,
       '-e', `GIT_EMAIL=${gitEmail}`,
       '--entrypoint','bash',
-      'code-server-dev',
+      'code-server-dev:br',
       '-c',
-      // use \${...} para o JS não interpolar; no bash final vira ${...} (expande envs)
-      `export NVM_DIR="$HOME/.nvm" && \
+`export NVM_DIR="$HOME/.nvm" && \
 source "$NVM_DIR/nvm.sh" && \
 git config --global user.name "\${GIT_NAME}" && \
 git config --global user.email "\${GIT_EMAIL}" && \
 npm config set registry http://host.docker.internal:4873 && \
-code-server --auth=none --bind-addr 0.0.0.0:${IN_CODE} /home/coder/project`
+code-server --locale pt-br --auth=none --bind-addr 0.0.0.0:${IN_CODE} /home/coder/project`
     ];
 
     const p = spawn('docker', dockerArgs);
@@ -157,7 +156,7 @@ code-server --auth=none --bind-addr 0.0.0.0:${IN_CODE} /home/coder/project`
       if (code !== 0) return res.status(500).send('Erro ao criar o container.');
       containerRegistry[name] = { id2, code: codePort, web: webPorts };
       const host = resolveRedirectHost(req);
-      res.redirect(`http://${host}:${codePort}`);
+      res.redirect(`http://${host}:${codePort}/?locale=pt-br`);
     });
   });
 });
@@ -200,5 +199,6 @@ process.on('SIGINT', async () => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
+  console.log(`TURMA: ${TURMA}`);
   console.log(`🌐 Servidor ouvindo em http://0.0.0.0:${PORT}`);
 });
