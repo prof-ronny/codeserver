@@ -3,7 +3,7 @@ FROM codercom/code-server:4.103.2-focal
 
 USER root
 RUN apt-get update && apt-get install -y \
-    curl git python3 python3-pip build-essential zip sudo locales \
+    curl git python3 python3-pip build-essential zip sudo locales ca-certificates \
  && sed -i 's/^# *\(pt_BR.UTF-8\)/\1/' /etc/locale.gen \
  && locale-gen pt_BR.UTF-8 && update-locale LANG=pt_BR.UTF-8 LC_ALL=pt_BR.UTF-8 \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -12,17 +12,30 @@ RUN apt-get update && apt-get install -y \
 RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-26.1.1.tgz \
  | tar xz && mv docker/docker /usr/local/bin/ && rm -rf docker
 
+# --- NVM + Node LTS + pnpm/yarn (tudo no mesmo RUN) ---
 USER coder
 ENV HOME=/home/coder
-ENV LANG=pt_BR.UTF-8 LC_ALL=pt_BR.UTF-8 LANGUAGE=pt_BR:pt:en
-ENV NVM_DIR=$HOME/.nvm
-ENV PATH="$NVM_DIR/versions/node/v20.14.0/bin:$PATH"
-ENV npm_config_cache=/home/coder/npm-cache
+ENV NVM_DIR=/home/coder/.nvm
+# instala nvm, instala Node LTS via nvm, define default, instala pnpm/yarn e configura pnpm
+RUN curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash \
+ && bash -lc '. "$NVM_DIR/nvm.sh" \
+   && nvm install --lts \
+   && nvm alias default "lts/*" \
+   && nvm use default \
+   && npm i -g pnpm@9 yarn \
+   && pnpm config set prefer-offline true \
+   && pnpm config set fetch-retries 3'
 
-# Node LTS + Yarn
-RUN bash -c "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
-  export NVM_DIR=$HOME/.nvm && source $NVM_DIR/nvm.sh && \
-  nvm install --lts && nvm use --lts && npm install -g yarn"
+# garante autoload do nvm/nó default para shells posteriores
+USER root
+RUN printf 'export NVM_DIR="%s"\n[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"\n' "$NVM_DIR" \
+  > /etc/profile.d/nvm.sh
+USER coder
+
+# pnpm: store compartilhado (vamos montar volume em /pnpm-store)
+ENV PNPM_HOME=/home/coder/.local/share/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+ENV PNPM_STORE_DIR=/pnpm-store
 
 # Python formatter
 RUN pip3 install --no-cache-dir autopep8
@@ -49,4 +62,4 @@ ENV VSCODE_NLS_CONFIG='{"locale":"pt-br","availableLanguages":{"*":"pt-br"}}'
 WORKDIR /home/coder/project
 EXPOSE 8080
 
-CMD ["code-server", "--locale", "pt-br", "--auth=none", "--bind-addr", "0.0.0.0:8080", "/home/coder/project"]
+CMD ["bash", "-lc", ". \"$NVM_DIR/nvm.sh\" && code-server --locale pt-br --auth=none --bind-addr 0.0.0.0:8080 /home/coder/project"]
