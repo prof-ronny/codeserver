@@ -10,7 +10,7 @@ const docker = new Docker();
 const app = express();
 const PORT = 5000;
 
-const TURMA = 'TESTE';
+const TURMA = 'SEG';
 const BASE_PATH = '/home/ronny/projects/' + TURMA;
 
 // Tag da imagem
